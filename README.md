@@ -4,6 +4,7 @@ This is a plugin for Nagios that will check Fluentd internal metrics (from monit
 
 # Usage
 
+```
   Usage: check_fluentd.py [options]
   
   Options:
@@ -14,4 +15,4 @@ This is a plugin for Nagios that will check Fluentd internal metrics (from monit
     -c CRIT, --critical=CRIT
                           critical threthold (default: retry_limit - 3)
     -p, --print           Print parsed Fluentd metrics
-
+```
