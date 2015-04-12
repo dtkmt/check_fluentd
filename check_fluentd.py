@@ -3,6 +3,7 @@
 
 import urllib2
 import json
+import re
 import sys
 from optparse import OptionParser
 
@@ -30,12 +31,12 @@ parser.add_option(
     dest="crit")
 parser.add_option(
     # "-W", "--buffer-warning", default="50%", type="string",
-    "-W", "--buffer-warning", default=50, type="int",
+    "-W", "--buffer-warning", default="50%", type="string",
     help="Warning threshold buffer_total_queued_size (default: buffer_total_queued_size * 50%)",
     dest="b_warn")
 parser.add_option(
     # "-C", "--buffer-critical", default="80%", type="string",
-    "-C", "--buffer-critical", default=80, type="int",
+    "-C", "--buffer-critical", default="80%", type="string",
     help="Critical threshold buffer_total_queued_size (default: buffer_total_queued_size * 80%)",
     dest="b_crit")
 parser.add_option(
@@ -58,6 +59,11 @@ def print_metrics():
     for result in results:
         print json.dumps(result, indent=4, sort_keys=True)
     sys.exit(STATUS_OK)
+
+
+def cast_opts(threshold):
+    threshold = float(re.search(r'[0-9]+', threshold).group(0)) / 100
+    return threshold
 
 
 def check_count(count, warning, critical, result):
@@ -101,7 +107,7 @@ def set_buff_size_threshold(result, threshold):
         queue_limit = int(result['config']['buffer_queue_limit'])
     else:
         queue_limit = DEFAULT_QUEUE_LIMIT
-    threshold = chunk_limit * queue_limit * (threshold / 100)
+    threshold = chunk_limit * queue_limit * threshold
     return threshold
 
 
@@ -121,8 +127,8 @@ def main():
     for result in results:
         warn = set_count_threshold(result, options.warn)
         crit = set_count_threshold(result, options.crit)
-        b_warn = set_buff_size_threshold(result, options.warn)
-        b_crit = set_buff_size_threshold(result, options.crit)
+        b_warn = set_buff_size_threshold(result, cast_opts(options.b_warn))
+        b_crit = set_buff_size_threshold(result, cast_opts(options.b_crit))
         check_count(result['retry_count'], warn, crit, result)
         if 'buffer_total_queued_size' in result:
             check_buff_size(result['buffer_total_queued_size'], b_warn, b_crit, result)
