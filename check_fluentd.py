@@ -12,6 +12,8 @@ STATUS_CRITICAL = 2
 STATUS_UNKNOWN = 3
 
 DEFAULT_LIMIT = 17
+DEFAULT_CHUNK_LIMIT = 8388608
+DEFAULT_QUEUE_LIMIT = 256
 
 parser = OptionParser()
 parser.add_option(
@@ -20,12 +22,22 @@ parser.add_option(
     dest="url")
 parser.add_option(
     "-w", "--warning", default=5, type="int",
-    help="warning threshold (default: retry_limit - 5)",
+    help="Warning threshold retry_count (default: 5 (retry_limit - warn))",
     dest="warn")
 parser.add_option(
     "-c", "--critical", default=3, type="int",
-    help="critical threshold (default: retry_limit - 3)",
+    help="Critical threshold retry_count (default: 3 (retry_limit - crit))",
     dest="crit")
+parser.add_option(
+    # "-W", "--buffer-warning", default="50%", type="string",
+    "-W", "--buffer-warning", default=50, type="int",
+    help="Warning threshold buffer_total_queued_size (default: buffer_total_queued_size * 50%)",
+    dest="b_warn")
+parser.add_option(
+    # "-C", "--buffer-critical", default="80%", type="string",
+    "-C", "--buffer-critical", default=80, type="int",
+    help="Critical threshold buffer_total_queued_size (default: buffer_total_queued_size * 80%)",
+    dest="b_crit")
 parser.add_option(
     "-p", "--print", action="store_true", dest="printflg",
     help="Print parsed Fluentd metrics")
@@ -60,17 +72,36 @@ def check_count(count, warning, critical, result):
             sys.exit(STATUS_WARNING)
 
 
-def set_threshold(result, threshold, flg):
-    if flg == "WARN":
-        if 'retry_limit' in result['config']:
-            threshold = int(result['config']['retry_limit']) - options.warn
-        else:
-            threshold = DEFAULT_LIMIT - options.warn
+def check_buff_size(b_size, b_warning, b_critical, result):
+    if b_size is not None:
+        if b_size >= b_critical:
+            print "CRITICAL: buffer_total_queued_size is %d, crit:%d" \
+                % (b_size, b_critical)
+            sys.exit(STATUS_CRITICAL)
+        if b_size >= b_warning:
+            print "WARNING: buffer_total_queued_size is %d, warn:%d" \
+                % (b_size, b_warning)
+            sys.exit(STATUS_WARNING)
+
+
+def set_count_threshold(result, threshold):
+    if 'retry_limit' in result['config']:
+        threshold = int(result['config']['retry_limit']) - threshold
     else:
-        if 'retry_limit' in result['config']:
-            threshold = int(result['config']['retry_limit']) - options.crit
-        else:
-            threshold = DEFAULT_LIMIT - options.crit
+        threshold = DEFAULT_LIMIT - threshold
+    return threshold
+
+
+def set_buff_size_threshold(result, threshold):
+    if 'buffer_chunk_limit' in result['config']:
+        chunk_limit = int(result['config']['buffer_chunk_limit'])
+    else:
+        chunk_limit = DEFAULT_CHUNK_LIMIT
+    if 'buffer_queue_limit' in result['config']:
+        queue_limit = int(result['config']['buffer_queue_limit'])
+    else:
+        queue_limit = DEFAULT_QUEUE_LIMIT
+    threshold = chunk_limit * queue_limit * (threshold / 100)
     return threshold
 
 
@@ -88,10 +119,14 @@ def main():
         print_metrics()
     varidate_metrics(results)
     for result in results:
-        warn = set_threshold(result, options.warn, "WARN")
-        crit = set_threshold(result, options.crit, "CRIT")
+        warn = set_count_threshold(result, options.warn)
+        crit = set_count_threshold(result, options.crit)
+        b_warn = set_buff_size_threshold(result, options.warn)
+        b_crit = set_buff_size_threshold(result, options.crit)
         check_count(result['retry_count'], warn, crit, result)
-    print "OK: All retry_count is OK"
+        if 'buffer_total_queued_size' in result:
+            check_buff_size(result['buffer_total_queued_size'], b_warn, b_crit, result)
+    print "OK: All retry_count and buffer_total_queued_size is OK"
     sys.exit(STATUS_OK)
 
 if __name__ == '__main__':
