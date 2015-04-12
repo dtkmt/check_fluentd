@@ -20,11 +20,11 @@ parser.add_option(
     dest="url")
 parser.add_option(
     "-w", "--warning", default=5, type="int",
-    help="warning threthold (default: retry_limit - 5)",
+    help="warning threshold (default: retry_limit - 5)",
     dest="warn")
 parser.add_option(
     "-c", "--critical", default=3, type="int",
-    help="critical threthold (default: retry_limit - 3)",
+    help="critical threshold (default: retry_limit - 3)",
     dest="crit")
 parser.add_option(
     "-p", "--print", action="store_true", dest="printflg",
@@ -60,18 +60,18 @@ def check_count(count, warning, critical, result):
             sys.exit(STATUS_WARNING)
 
 
-def set_threthold(result, threthold, flg):
+def set_threshold(result, threshold, flg):
     if flg == "WARN":
         if 'retry_limit' in result['config']:
-            threthold = int(result['config']['retry_limit']) - options.warn
+            threshold = int(result['config']['retry_limit']) - options.warn
         else:
-            threthold = DEFAULT_LIMIT - options.warn
+            threshold = DEFAULT_LIMIT - options.warn
     else:
         if 'retry_limit' in result['config']:
-            threthold = int(result['config']['retry_limit']) - options.crit
+            threshold = int(result['config']['retry_limit']) - options.crit
         else:
-            threthold = DEFAULT_LIMIT - options.crit
-    return threthold
+            threshold = DEFAULT_LIMIT - options.crit
+    return threshold
 
 
 def varidate_metrics(results):
@@ -88,8 +88,8 @@ def main():
         print_metrics()
     varidate_metrics(results)
     for result in results:
-        warn = set_threthold(result, options.warn, "WARN")
-        crit = set_threthold(result, options.crit, "CRIT")
+        warn = set_threshold(result, options.warn, "WARN")
+        crit = set_threshold(result, options.crit, "CRIT")
         check_count(result['retry_count'], warn, crit, result)
     print "OK: All retry_count is OK"
     sys.exit(STATUS_OK)
