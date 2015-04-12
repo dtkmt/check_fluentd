@@ -16,3 +16,16 @@ This is a plugin for Nagios that will check Fluentd internal metrics (from monit
                           critical threthold (default: retry_limit - 3)
     -p, --print           Print parsed Fluentd metrics
 ```
+
+# Requirements
+
+Activate "monitor_agent" Fluentd plugin
+
+```
+<source>
+  type monitor_agent
+  bind 0.0.0.0
+  port 24220
+</source>
+```
+
