@@ -16,36 +16,41 @@ DEFAULT_LIMIT = 17
 DEFAULT_CHUNK_LIMIT = 8388608
 DEFAULT_QUEUE_LIMIT = 256
 
-parser = OptionParser()
-parser.add_option(
-    "-u", "--url", default="localhost:24220", type="string",
-    help="Fluentd monitor_agent URL (default: localhost:24220)",
-    dest="url")
-parser.add_option(
-    "-w", "--warning", default=5, type="int",
-    help="Warning threshold retry_count (default: 5 (retry_limit - warn))",
-    dest="warn")
-parser.add_option(
-    "-c", "--critical", default=3, type="int",
-    help="Critical threshold retry_count (default: 3 (retry_limit - crit))",
-    dest="crit")
-parser.add_option(
-    # "-W", "--buffer-warning", default="50%", type="string",
-    "-W", "--buffer-warning", default="50%", type="string",
-    help="Warning threshold buffer_total_queued_size (default: buffer_total_queued_size * 50%)",
-    dest="b_warn")
-parser.add_option(
-    # "-C", "--buffer-critical", default="80%", type="string",
-    "-C", "--buffer-critical", default="80%", type="string",
-    help="Critical threshold buffer_total_queued_size (default: buffer_total_queued_size * 80%)",
-    dest="b_crit")
-parser.add_option(
-    "-p", "--print", action="store_true", dest="printflg",
-    help="Print parsed Fluentd metrics")
-(options, args) = parser.parse_args()
+
+def option_parse():
+    parser = OptionParser()
+    parser.add_option(
+        "-u", "--url", default="localhost:24220", type="string",
+        help="Fluentd monitor_agent URL (default: localhost:24220)",
+        dest="url")
+    parser.add_option(
+        "-w", "--warning", default=5, type="int",
+        help="Warning threshold retry_count (default: 5 (retry_limit - warn))",
+        dest="warn")
+    parser.add_option(
+        "-c", "--critical", default=3, type="int",
+        help="Critical threshold retry_count \
+        (default: 3 (retry_limit - crit))",
+        dest="crit")
+    parser.add_option(
+        # "-W", "--buffer-warning", default="50%", type="string",
+        "-W", "--buffer-warning", default="50%", type="string",
+        help="Warning threshold buffer_total_queued_size \
+        (default: buffer_total_queued_size * 50%)",
+        dest="b_warn")
+    parser.add_option(
+        # "-C", "--buffer-critical", default="80%", type="string",
+        "-C", "--buffer-critical", default="80%", type="string",
+        help="Critical threshold buffer_total_queued_size \
+        (default: buffer_total_queued_size * 80%)",
+        dest="b_crit")
+    parser.add_option(
+        "-p", "--print", action="store_true", dest="printflg",
+        help="Print parsed Fluentd metrics")
+    return parser.parse_args()
 
 
-def get_metrics():
+def get_metrics(options):
     url = "http://" + options.url + "/api/plugins.json"
     request = urllib2.Request(url)
     opener = urllib2.build_opener()
@@ -120,7 +125,8 @@ def varidate_metrics(results):
 
 
 def main():
-    results = get_metrics()
+    (options, args) = option_parse()
+    results = get_metrics(options)
     if options.printflg:
         print_metrics()
     varidate_metrics(results)
@@ -131,7 +137,7 @@ def main():
         b_crit = set_buff_size_threshold(result, cast_opts(options.b_crit))
         check_count(result['retry_count'], warn, crit, result)
         if 'buffer_total_queued_size' in result:
-            check_buff_size(result['buffer_total_queued_size'], b_warn, b_crit, result)
+            check_buff_size(result['buffer_total_queued_size'],b_warn, b_crit, result)
     print "OK: All retry_count and buffer_total_queued_size is OK"
     sys.exit(STATUS_OK)
 
