@@ -28,7 +28,7 @@ parser.add_option(
     dest="crit")
 parser.add_option(
     "-p", "--print", action="store_true", dest="printflg",
-    help="Show parsed Fluentd metrics")
+    help="Print parsed Fluentd metrics")
 (options, args) = parser.parse_args()
 
 
@@ -58,9 +58,6 @@ def check_count(count, warning, critical, result):
             print "WARNING: retry_count is %d, warn:%d, config:%s" \
                 % (count, warning, result['config'])
             sys.exit(STATUS_WARNING)
-        else:
-            print "OK: retry_count is %d" % (count)
-            sys.exit(STATUS_OK)
 
 
 def set_threthold(result, threthold, flg):
@@ -94,6 +91,8 @@ def main():
         warn = set_threthold(result, options.warn, "WARN")
         crit = set_threthold(result, options.crit, "CRIT")
         check_count(result['retry_count'], warn, crit, result)
+    print "OK: All retry_count is OK"
+    sys.exit(STATUS_OK)
 
 if __name__ == '__main__':
     main()
