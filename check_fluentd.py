@@ -32,29 +32,31 @@ parser.add_option(
 (options, args) = parser.parse_args()
 
 
-def getMetrics():
+def get_metrics():
     url = "http://" + options.url + "/api/plugins.json"
-    req = urllib2.Request(url)
+    request = urllib2.Request(url)
     opener = urllib2.build_opener()
-    f = opener.open(req)
+    f = opener.open(request)
     results = json.loads(f.read())
     return results['plugins']
 
 
 def print_metrics():
-    results = getMetrics()
+    results = get_metrics()
     for result in results:
         print json.dumps(result, indent=4, sort_keys=True)
     sys.exit(STATUS_OK)
 
 
-def checkCount(count, warning, critical):
+def check_count(count, warning, critical, result):
     if count is not None:
         if count >= critical:
-            print "CRITICAL: retry_count is %d, crit:%d" % (count, critical)
+            print "CRITICAL: retry_count is %d, crit:%d, config:%s" \
+                % (count, critical, result['config'])
             sys.exit(STATUS_CRITICAL)
         if count >= warning:
-            print "WARNING: retry_count is %d, warn:%d" % (count, warning)
+            print "WARNING: retry_count is %d, warn:%d, config:%s" \
+                % (count, warning, result['config'])
             sys.exit(STATUS_WARNING)
         else:
             print "OK: retry_count is %d" % (count)
@@ -84,14 +86,14 @@ def varidate_metrics(results):
 
 
 def main():
-    results = getMetrics()
+    results = get_metrics()
     if options.printflg:
         print_metrics()
     varidate_metrics(results)
     for result in results:
         warn = set_threthold(result, options.warn, "WARN")
         crit = set_threthold(result, options.crit, "CRIT")
-        checkCount(result['retry_count'], warn, crit)
+        check_count(result['retry_count'], warn, crit, result)
 
 if __name__ == '__main__':
     main()
