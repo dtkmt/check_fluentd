@@ -11,7 +11,7 @@ STATUS_WARNING = 1
 STATUS_CRITICAL = 2
 STATUS_UNKNOWN = 3
 
-RETRY_LIMIT = 17
+DEFAULT_LIMIT = 17
 
 parser = OptionParser()
 parser.add_option(
@@ -19,13 +19,16 @@ parser.add_option(
     help="Fluentd monitor_agent URL (default: localhost:24220)",
     dest="url")
 parser.add_option(
-    "-w", "--warning", default=None, type="int",
-    help="warning threthold (default: retry_count - 5)",
+    "-w", "--warning", default=5, type="int",
+    help="warning threthold (default: retry_limit - 5)",
     dest="warn")
 parser.add_option(
-    "-c", "--critical", default=None, type="int",
-    help="critical threthold (default: retry_count - 3)",
+    "-c", "--critical", default=3, type="int",
+    help="critical threthold (default: retry_limit - 3)",
     dest="crit")
+parser.add_option(
+    "-p", "--print", action="store_true", dest="printflg",
+    help="Show parsed Fluentd metrics")
 (options, args) = parser.parse_args()
 
 
@@ -36,6 +39,13 @@ def getMetrics():
     f = opener.open(req)
     results = json.loads(f.read())
     return results['plugins']
+
+
+def print_metrics():
+    results = getMetrics()
+    for result in results:
+        print json.dumps(result, indent=4, sort_keys=True)
+    sys.exit(STATUS_OK)
 
 
 def checkCount(count, warning, critical):
@@ -51,36 +61,37 @@ def checkCount(count, warning, critical):
             sys.exit(STATUS_OK)
 
 
-def set_warn_threthold(result, threthold):
-    if threthold is None:
+def set_threthold(result, threthold, flg):
+    if flg == "WARN":
         if 'retry_limit' in result['config']:
-            retry_limit = result['config']['retry_limit']
-            threthold = int(retry_limit) - 3
+            threthold = int(result['config']['retry_limit']) - options.warn
         else:
-            threthold = RETRY_LIMIT - 3
+            threthold = DEFAULT_LIMIT - options.warn
+    else:
+        if 'retry_limit' in result['config']:
+            threthold = int(result['config']['retry_limit']) - options.crit
+        else:
+            threthold = DEFAULT_LIMIT - options.crit
     return threthold
 
 
-def set_crit_threthold(result, threthold):
-    if threthold is None:
-        if 'retry_limit' in result['config']:
-            retry_limit = result['config']['retry_limit']
-            threthold = int(retry_limit) - 5
-        else:
-            threthold = RETRY_LIMIT - 5
-    return threthold
+def varidate_metrics(results):
+    for result in results:
+        if result['retry_count'] is not None:
+            return None
+    print "UNKNOWN: retry_count metric does not exist."
+    sys.exit(STATUS_UNKNOWN)
 
 
 def main():
     results = getMetrics()
+    if options.printflg:
+        print_metrics()
+    varidate_metrics(results)
     for result in results:
-        warn = set_warn_threthold(result, options.warn)
-        crit = set_crit_threthold(result, options.crit)
-        if 'retry_count' in result:
-            checkCount(result['retry_count'], warn, crit)
-        else:
-            print "UNKNOWN: retry_count metric is None"
-            sys.exit(STATUS_UNKNOWN)
+        warn = set_threthold(result, options.warn, "WARN")
+        crit = set_threthold(result, options.crit, "CRIT")
+        checkCount(result['retry_count'], warn, crit)
 
 if __name__ == '__main__':
     main()
